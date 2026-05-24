@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zyncx QR Generator</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"></script>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useRef, useCallback, useEffect } = React;
+
+    const G = {
+      bg: "#0a0a0f",
+      card: "#13131a",
+      border: "#1e1e2e",
+      accent: "#00f5a0",
+      accent2: "#00d9f5",
+      text: "#f0f0ff",
+      muted: "#6b6b8a",
+      danger: "#ff4d6d",
+    };
+
+    const css = `
+      @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: ${G.bg}; color: ${G.text}; font-family: 'Syne', sans-serif; min-height: 100vh; padding: 32px 20px 80px; }
+      .app { max-width: 1100px; margin: 0 auto; }
+      .header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
+      .header-logo { width: 48px; height: 48px; background: linear-gradient(135deg, ${G.accent}, ${G.accent2}); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #000; font-family: 'Space Mono', monospace; }
+      .header-title { font-size: clamp(22px,4vw,32px); font-weight: 800; letter-spacing: -1px; }
+      .header-sub { font-size: 13px; color: ${G.muted}; font-family: 'Space Mono', monospace; }
+      .badge { margin-left: auto; background: ${G.accent}22; border: 1px solid ${G.accent}55; color: ${G.accent}; font-size: 11px; font-family: 'Space Mono', monospace; padding: 4px 12px; border-radius: 20px; }
+      .tabs { display: flex; gap: 4px; background: ${G.card}; border: 1px solid ${G.border}; border-radius: 14px; padding: 6px; margin-bottom: 28px; overflow-x: auto; }
+      .tab { flex: 1; padding: 10px 16px; border: none; background: transparent; color: ${G.muted}; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; border-radius: 10px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 6px; justify-content: center; }
+      .tab.active { background: linear-gradient(135deg, ${G.accent}22, ${G.accent2}22); border: 1px solid ${G.accent}44; color: ${G.accent}; }
+      .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+      @media (max-width: 720px) { .main-grid { grid-template-columns: 1fr; } }
+      .card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 18px; padding: 28px; }
+      .card-title { font-size: 14px; font-weight: 600; color: ${G.muted}; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px; font-family: 'Space Mono', monospace; }
+      .field { margin-bottom: 16px; }
+      .field label { display: block; font-size: 12px; color: ${G.muted}; margin-bottom: 6px; font-family: 'Space Mono', monospace; text-transform: uppercase; }
+      .field input, .field select, .field textarea { width: 100%; background: ${G.bg}; border: 1px solid ${G.border}; border-radius: 10px; padding: 12px 14px; color: ${G.text}; font-family: 'Syne', sans-serif; font-size: 14px; outline: none; }
+      .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .slider-wrap { display: flex; align-items: center; gap: 12px; }
+      .slider-wrap input { flex: 1; }
+      .slider-val { font-family: 'Space Mono', monospace; font-size: 12px; color: ${G.accent}; }
+      .color-row { display: flex; gap: 12px; }
+      .color-field { flex: 1; }
+      .color-input-wrap { display: flex; align-items: center; gap: 8px; background: ${G.bg}; border: 1px solid ${G.border}; border-radius: 10px; padding: 8px 12px; }
+      .color-input-wrap input { width: 28px; height: 28px; border: none; cursor: pointer; }
+      .toggle-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+      .toggle { width: 40px; height: 22px; background: ${G.border}; border-radius: 11px; position: relative; cursor: pointer; border: none; }
+      .toggle.on { background: ${G.accent}; }
+      .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: left .2s; }
+      .toggle.on::after { left: 21px; }
+      .btn-group { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+      .btn { flex: 1; min-width: 120px; padding: 13px 20px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+      .btn-primary { background: linear-gradient(135deg, ${G.accent}, ${G.accent2}); color: #000; }
+      .btn-secondary { background: ${G.border}; color: ${G.text}; border: 1px solid ${G.border}; }
+      .btn-ghost { background: transparent; color: ${G.danger}; border: 1px solid ${G.danger}33; }
+      .qr-card { position: sticky; top: 20px; }
+      .qr-preview { display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 16px; padding: 20px; min-height: 200px; }
+      .qr-placeholder { display: flex; flex-direction: column; align-items: center; gap: 12px; color: #ccc; }
+      .history-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+      .history-item { display: flex; align-items: center; gap: 12px; background: ${G.bg}; border: 1px solid ${G.border}; border-radius: 12px; padding: 10px 14px; cursor: pointer; }
+      .history-thumb img { width: 36px; height: 36px; background: #fff; border-radius: 6px; }
+      .history-info { flex: 1; min-width: 0; }
+      .history-type { font-size: 11px; color: ${G.accent}; font-family: 'Space Mono', monospace; }
+      .history-val { font-size: 12px; color: ${G.muted}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+      .toast { background: ${G.card}; border: 1px solid ${G.accent}55; color: ${G.text}; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-family: 'Space Mono', monospace; }
+      .divider { border: none; border-top: 1px solid ${G.border}; margin: 20px 0; }
+    `;
+
+    const TYPE_TO_TAB = { "URL/Texto": "url", "WiFi": "wifi", "Contacto": "vcard", "SMS": "sms", "WhatsApp": "sms" };
+
+    function App() {
+      const [tab, setTab] = useState("url");
+      const [qrText, setQrText] = useState("");
+      const [qrType, setQrType] = useState("URL/Texto");
+      const [qrDataURL, setQrDataURL] = useState(null);
+      const [size, setSize] = useState(280);
+      const [fg, setFg] = useState("#000000");
+      const [bg, setBg] = useState("#ffffff");
+      const ignorNextQR = useRef(false);
+
+      const [toasts, setToasts] = useState([]);
+      const showToast = (msg, icon = "✓") => {
+        const id = Date.now();
+        setToasts(t => [...t, { id, msg, icon }]);
+        setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 2500);
+      };
+
+      const [history, setHistory] = useState(() => {
+        try { return JSON.parse(localStorage.getItem("qr_history_v2")) || []; } catch { return []; }
+      });
+
+      useEffect(() => {
+        if (!qrText) { setQrDataURL(null); return; }
+        QRCode.toDataURL(qrText, { width: size, margin: 2, color: { dark: fg, light: bg } })
+          .then(setQrDataURL).catch(() => setQrDataURL(null));
+      }, [qrText, size, fg, bg]);
+
+      const handleDownload = async () => {
+        if (!qrDataURL) return;
+        const a = document.createElement("a");
+        a.href = await QRCode.toDataURL(qrText, { width: 600, margin: 2, color: { dark: fg, light: bg } });
+        a.download = `qr_${Date.now()}.png`;
+        a.click();
+
+        const next = [{ id: Date.now(), type: qrType, val: qrText.length > 40 ? qrText.slice(0, 37) + "..." : qrText, fullText: qrText, dataURL: qrDataURL }, ...history].slice(0, 10);
+        setHistory(next);
+        localStorage.setItem("qr_history_v2", JSON.stringify(next));
+        showToast("Descargado exitosamente");
+      };
+
+      const handleCopy = async () => {
+        if (!qrDataURL) return;
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = size; canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = bg; ctx.fillRect(0, 0, size, size);
+          const img = new Image();
+          img.src = qrDataURL;
+          img.onload = async () => {
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob(async (blob) => {
+              await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+              showToast("¡Copiado al portapapeles!");
+            });
+          };
+        } catch { showToast("Error al copiar", "⚠️"); }
+      };
+
+      const handleHistoryClick = (item) => {
+        const targetTab = TYPE_TO_TAB[item.type] || "url";
+        ignorNextQR.current = true;
+        setTab(targetTab);
+        setQrType(item.type);
+        setQrText(item.fullText || item.val);
+        showToast("QR restaurado");
+      };
+
+      return (
+        <>
+          <style>{css}</style>
+          <div className="app">
+            <div className="header">
+              <div className="header-logo">QR</div>
+              <div>
+                <div className="header-title">Generador de QR</div>
+                <div className="header-sub">// Proyecto Zyncx en vivo</div>
+              </div>
+              <div className="badge">Zyncx Trilogy</div>
+            </div>
+
+            <div className="tabs">
+              <button className={`tab ${tab === 'url' ? 'active' : ''}`} onClick={() => { setTab('url'); setQrText(''); }}>🔗 Simple</button>
+              <button className={`tab ${tab === 'wifi' ? 'active' : ''}`} onClick={() => { setTab('wifi'); setQrText(''); }}>📶 WiFi</button>
+            </div>
+
+            <div className="main-grid">
+              <div className="card">
+                <div className="card-title">Contenido del Código</div>
+                {tab === 'url' && (
+                  <div className="field">
+                    <label>Enlace o Texto</label>
+                    <input value={qrText} onChange={e => { setQrType("URL/Texto"); setQrText(e.target.value); }} placeholder="https://ejemplo.com" />
+                  </div>
+                )}
+                {tab === 'wifi' && (
+                  <div className="field">
+                    <label>Nombre de Red WiFi (SSID)</label>
+                    <input onChange={e => { setQrType("WiFi"); setQrText(`WIFI:S:${e.target.value};T:WPA;P:1234;;`); }} placeholder="Mi Red" />
+                  </div>
+                )}
+
+                <hr className="divider" />
+                <div className="card-title">Personalizar</div>
+                <div className="color-row">
+                  <div className="color-field">
+                    <div className="color-input-wrap">
+                      <input type="color" value={fg} onChange={e => setFg(e.target.value)} />
+                      <span>Código: {fg}</span>
+                    </div>
+                  </div>
+                  <div className="color-field">
+                    <div className="color-input-wrap">
+                      <input type="color" value={bg} onChange={e => setBg(e.target.value)} />
+                      <span>Fondo: {bg}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="btn-group">
+                  <button className="btn btn-primary" onClick={handleDownload} disabled={!qrText}>⬇️ Descargar PNG</button>
+                  <button className="btn btn-secondary" onClick={handleCopy} disabled={!qrText}>📋 Copiar</button>
+                </div>
+              </div>
+
+              <div className="card qr-card">
+                <div className="card-title">Vista previa</div>
+                <div className="qr-preview" style={{ background: bg }}>
+                  {qrDataURL ? <img src={qrDataURL} style={{ width: 200 }} /> : <div className="qr-placeholder">▦ Ingresa datos</div>}
+                </div>
+              </div>
+            </div>
+
+            {history.length > 0 && (
+              <div className="card" style={{ marginTop: 20 }}>
+                <div className="card-title">Historial Reciente</div>
+                <div className="history-list">
+                  {history.map(item => (
+                    <div key={item.id} className="history-item" onClick={() => handleHistoryClick(item)}>
+                      <div className="history-thumb"><img src={item.dataURL} /></div>
+                      <div className="history-info">
+                        <div className="history-type">{item.type}</div>
+                        <div className="history-val">{item.val}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="toast-container">
+            {toasts.map(t => <div key={t.id} className="toast">{t.msg}</div>)}
+          </div>
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
