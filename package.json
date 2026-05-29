@@ -1,0 +1,22 @@
+{
+  "name": "qr-generator",
+  "version": "1.0.0",
+  "description": "Zyncx QR Generator - Free, Fast and Unlimited QR code generator",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'No build step required for static HTML project'",
+    "preview": "npx serve .",
+    "lint": "echo 'No linter configured'"
+  },
+  "keywords": [
+    "qr",
+    "generator",
+    "qr-code"
+  ],
+  "author": "Zyncx",
+  "license": "MIT",
+  "dependencies": {
+    "@vercel/analytics": "^1.1.1"
+  }
+}
